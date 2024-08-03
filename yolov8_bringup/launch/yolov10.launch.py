@@ -30,12 +30,12 @@ def generate_launch_description():
                 os.path.join(get_package_share_directory(
                     "yolov8_bringup"), "launch", "yolov8.launch.py")),
             launch_arguments={
-                "model": LaunchConfiguration("model", default="yolov10m.pt"),
+                "model": LaunchConfiguration("model", default="yolov10b.pt"),
                 "tracker": LaunchConfiguration("tracker", default="bytetrack.yaml"),
                 "device": LaunchConfiguration("device", default="cuda:0"),
                 "enable": LaunchConfiguration("enable", default="True"),
                 "threshold": LaunchConfiguration("threshold", default="0.5"),
-                "input_image_topic": LaunchConfiguration("input_image_topic", default="/camera/rgb/image_raw"),
+                "input_image_topic": LaunchConfiguration("input_image_topic", default="/yolo/rgb/image_raw"),
                 "image_reliability": LaunchConfiguration("image_reliability", default="2"),
                 "namespace": LaunchConfiguration("namespace", default="yolo"),
             }.items(),
