@@ -38,6 +38,7 @@ class DepthNode(LifecycleNode):
                                QoSReliabilityPolicy.BEST_EFFORT)
         self.tf_buffer = Buffer()
         self.cv_bridge = CvBridge()
+        self.getlogget().info("Depth Node created")
 
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         
@@ -80,19 +81,20 @@ class DepthNode(LifecycleNode):
         self.depth_sub = message_filters.Subscriber(
             self, Image, "/yolo/depth_to_rgb/image_raw",
             qos_profile=self.depth_image_qos_profile)
-        self.get_logger().info(f"depth {self.get_name()}")
+        self.get_logger().info("Subscribed to depth_to_rgb topic")
+
         self.depth_info_sub = message_filters.Subscriber(
             self, CameraInfo, "/yolo/depth/camera_info",
             qos_profile=self.depth_info_qos_profile)
-        self.get_logger().info(f"cam info {self.get_name()}")
+        self.get_logger().info("Subscribed to camera_info topic")
+
         self.detections_sub = message_filters.Subscriber(
             self, DetectionArray, "/yolo/detections",)
+        self.get_logger().info("Subscribed to detections topic")
 
         self._synchronizer = message_filters.ApproximateTimeSynchronizer(
             (self.depth_sub, self.depth_info_sub, self.detections_sub), 10, 0.5)
-        self.get_logger().info(f"sync {self.get_name()}")
         self._synchronizer.registerCallback(self.on_detections)
-        self.get_logger().info(f"callback {self.get_name()}")
 
         return TransitionCallbackReturn.SUCCESS
 

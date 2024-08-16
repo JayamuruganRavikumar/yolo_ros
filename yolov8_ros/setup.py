@@ -24,6 +24,7 @@ setup(
                 'debug_node = yolov8_ros.debug_node:main',
                 'tracking_node = yolov8_ros.tracking_node:main',
                 'detect_3d_node = yolov8_ros.detect_3d_node:main',
+                'depth_node = yolov8_ros.depth_node:main',
         ],
     },
 )
