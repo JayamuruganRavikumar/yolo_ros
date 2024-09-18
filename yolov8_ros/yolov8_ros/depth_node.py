@@ -15,7 +15,7 @@ from rclpy.lifecycle import LifecycleState
 import message_filters
 from cv_bridge import CvBridge
 from tf2_ros.buffer import Buffer
-from tf2_ros import TransformException
+from tf2_ros import TransformException, TransformBroadcaster
 from tf2_ros.transform_listener import TransformListener
 
 from sensor_msgs.msg import CameraInfo, Image
@@ -32,6 +32,7 @@ class DepthNode(LifecycleNode):
         self.declare_parameter("target_frame", "base_link")
         self.declare_parameter("maximum_detection_threshold", 0.3)
         self.declare_parameter("depth_image_units_divisor", 1000)
+        self.declare_parameter("bbox_inflate_factor", 0.1)
         self.declare_parameter("depth_image_reliability",
                                QoSReliabilityPolicy.BEST_EFFORT)
         self.declare_parameter("depth_info_reliability",
@@ -68,6 +69,9 @@ class DepthNode(LifecycleNode):
             durability=QoSDurabilityPolicy.VOLATILE,
             depth=1
         )
+        self.bbox_inflate_factor = self.get_parameter(
+            "bbox_inflate_factor").get_parameter_value().double_value
+        self.tf_broadcaster = TransformBroadcaster(self)
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # pubs
@@ -144,14 +148,35 @@ class DepthNode(LifecycleNode):
             if bbox3d is not None:
                 new_detections.append(detection)
                 new_detections[-1].bbox3d = bbox3d
-
+                self.publish_object_transform(detection, bbox3d)
 
         return new_detections
+
+    def publish_object_transform(self, detection: Detection, bbox3d: BoundingBox3D):
+        transform = TransformStamped()
+        transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = self.target_frame
+        transform.child_frame_id = f"{detection.class_id}_{detection.id}"
+
+        transform.transform.translation.x = bbox3d.center.position.x
+        transform.transform.translation.y = bbox3d.center.position.y
+        transform.transform.translation.z = bbox3d.center.position.z
+
+        # Set rotation to identity quaternion (no rotation)
+        transform.transform.rotation.x = 0.0
+        transform.transform.rotation.y = 0.0
+        transform.transform.rotation.z = 0.0
+        transform.transform.rotation.w = 1.0
+
+        self.tf_broadcaster.sendTransform(transform)
 
     def image_to_world(self, depth_image: np.ndarray, depth_info: CameraInfo, detection: Detection) -> BoundingBox3D:
 
         center_x = int(detection.bbox.center.position.x)
         center_y = int(detection.bbox.center.position.y)
+        bb_width = int(detection.bbox.size.x)
+        bb_height = int(detection.bbox.size.y)
+
         z = depth_image[center_y, center_x] 
 
         #Get camera intrinsic parameters
@@ -165,12 +190,25 @@ class DepthNode(LifecycleNode):
         x = z * (center_x - cx) / fx
         y = z * (center_y - cy) / fy
 
-        # Update detections with depth information
+        # Calculate the bounding box in 3D
+        world_width = z * bb_width / fx
+        world_height = z * bb_height / fy
+        world_depth = (world_width + world_height) / 2
+        
+        #Inflate the bounding box in 3D
+        inflation_factor = 1.0 + self.bbox_inflate_factor
+        world_width *= inflation_factor
+        world_height *= inflation_factor
+        world_depth *= inflation_factor
 
+        # Update detections with depth information
         msg = BoundingBox3D()
         msg.center.position.x = x
         msg.center.position.y = y
         msg.center.position.z = float(z)
+        msg.size.x = float(world_width)
+        msg.size.y = float(world_height)
+        msg.size.z = float(world_depth)
 
         return msg
 
