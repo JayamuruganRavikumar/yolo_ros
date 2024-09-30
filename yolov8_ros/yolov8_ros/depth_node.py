@@ -29,7 +29,7 @@ class DepthNode(LifecycleNode):
     def __init__(self):
         super().__init__('depth_node')
 
-        self.declare_parameter("target_frame", "base_link")
+        self.declare_parameter("target_frame", "yolo_link")
         self.declare_parameter("maximum_detection_threshold", 0.3)
         self.declare_parameter("depth_image_units_divisor", 1000)
         self.declare_parameter("bbox_inflate_factor", 0.1)
@@ -39,7 +39,7 @@ class DepthNode(LifecycleNode):
                                QoSReliabilityPolicy.BEST_EFFORT)
         self.tf_buffer = Buffer()
         self.cv_bridge = CvBridge()
-        self.getlogget().info("Depth Node created")
+        self.get_logger().info("Depth Node created")
 
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         
@@ -88,7 +88,7 @@ class DepthNode(LifecycleNode):
         self.get_logger().info("Subscribed to depth_to_rgb topic")
 
         self.depth_info_sub = message_filters.Subscriber(
-            self, CameraInfo, "/yolo/depth/camera_info",
+            self, CameraInfo, "/yolo/depth_to_rgb/camera_info",
             qos_profile=self.depth_info_qos_profile)
         self.get_logger().info("Subscribed to camera_info topic")
 
@@ -99,6 +99,7 @@ class DepthNode(LifecycleNode):
         self._synchronizer = message_filters.ApproximateTimeSynchronizer(
             (self.depth_sub, self.depth_info_sub, self.detections_sub), 10, 0.5)
         self._synchronizer.registerCallback(self.on_detections)
+        self.get_logger().info("Callback activated")
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -128,6 +129,7 @@ class DepthNode(LifecycleNode):
 
     def on_detections(self, depth_msg: Image, depth_info_msg: CameraInfo, detections_msg: DetectionArray):
 
+        print("entered")
         new_detections_msg = DetectionArray()
         new_detections_msg.header = detections_msg.header
         new_detections_msg.detections = self.process_detections(
@@ -156,11 +158,11 @@ class DepthNode(LifecycleNode):
         transform = TransformStamped()
         transform.header.stamp = self.get_clock().now().to_msg()
         transform.header.frame_id = self.target_frame
-        transform.child_frame_id = f"{detection.class_id}_{detection.id}"
+        transform.child_frame_id = f"{detection.class_id}_{detection.class_name}"
 
-        transform.transform.translation.x = bbox3d.center.position.x
-        transform.transform.translation.y = bbox3d.center.position.y
-        transform.transform.translation.z = bbox3d.center.position.z
+        transform.transform.translation.x = bbox3d.center.position.x/1000
+        transform.transform.translation.y = bbox3d.center.position.y/1000
+        transform.transform.translation.z = bbox3d.center.position.z/1000
 
         # Set rotation to identity quaternion (no rotation)
         transform.transform.rotation.x = 0.0

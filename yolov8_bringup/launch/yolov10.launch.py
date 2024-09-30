@@ -34,7 +34,7 @@ def generate_launch_description():
                 "tracker": LaunchConfiguration("tracker", default="bytetrack.yaml"),
                 "device": LaunchConfiguration("device", default="cuda:0"),
                 "enable": LaunchConfiguration("enable", default="True"),
-                "threshold": LaunchConfiguration("threshold", default="0.5"),
+                "threshold": LaunchConfiguration("threshold", default="0.85"),
                 "input_image_topic": LaunchConfiguration("input_image_topic", default="/yolo/rgb/image_raw"),
                 "image_reliability": LaunchConfiguration("image_reliability", default="2"),
                 "namespace": LaunchConfiguration("namespace", default="yolo"),
